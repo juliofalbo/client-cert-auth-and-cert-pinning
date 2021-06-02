@@ -1,0 +1,48 @@
+# Generate Bad Client Certificates (each one is sign with different CAs)
+
+openssl genrsa -des3 -out ca.key 4096
+openssl req -new -x509 -days 365 -key ca.key -out ca.crt
+openssl rsa -in ca.key -out ca.key.nopass
+
+openssl genrsa -des3 -out client1.key 4096
+openssl req -new -key client1.key -out client1.csr
+openssl x509 -req -days 365 -in client1.csr -CA ca.crt -CAkey ca.key.nopass -set_serial 01 -out client1.crt
+
+openssl pkcs12 -export -out client1.pfx -inkey client1.key -in client1.crt -certfile ca.crt
+openssl pkcs12 -in client1.pfx -out client1.pem -nodes
+
+openssl genrsa -des3 -out client2.key 4096
+openssl req -new -key client2.key -out client2.csr
+openssl x509 -req -days 365 -in client2.csr -CA ca.crt -CAkey ca.key.nopass -set_serial 01 -out client2.crt
+
+openssl pkcs12 -export -out client2.pfx -inkey client2.key -in client2.crt -certfile ca.crt
+openssl pkcs12 -in client2.pfx -out client2.pem -nodes
+
+
+# Generate Good Client Certs (all of them using the client_ca.crt and client_ca.key to sign)
+
+openssl genrsa -des3 -out client_ca.key 4096
+openssl req -new -x509 -days 365 -key client_ca.key -out client_ca.crt
+openssl rsa -in client_ca.key -out client_ca.key.nopass
+
+openssl genrsa -des3 -out client3.key 4096
+openssl req -new -key client3.key -out client3.csr
+openssl x509 -req -days 365 -in client3.csr -CA client_ca.crt -CAkey client_ca.key.nopass -set_serial 01 -out client3.crt
+
+openssl pkcs12 -export -out client3.pfx -inkey client3.key -in client3.crt -certfile client_ca.crt
+openssl pkcs12 -in client3.pfx -out client3.pem -nodes
+
+openssl genrsa -des3 -out client4.key 4096
+openssl req -new -key client4.key -out client4.csr
+openssl x509 -req -days 365 -in client4.csr -CA client_ca.crt -CAkey client_ca.key.nopass -set_serial 01 -out client4.crt
+
+openssl pkcs12 -export -out client4.pfx -inkey client4.key -in client4.crt -certfile client_ca.crt
+openssl pkcs12 -in client4.pfx -out client4.pem -nodes
+
+# Request using Curl (only doing the certification client validation over Nginx, don't doing pinning)
+
+curl 'https://localhost?q=Foo' --cacert ./certificates/ca.crt --cert ./certificates/client1.pem
+curl 'https://localhost?q=Foo' --cacert ./certificates/ca.crt --cert ./certificates/client2.pem
+
+curl 'https://localhost?q=Foo' --cacert ./certificates/ca.crt --cert ./certificates/client3.pem
+curl 'https://localhost?q=Foo' --cacert ./certificates/ca.crt --cert ./certificates/client4.pem
